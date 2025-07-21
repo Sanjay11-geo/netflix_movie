@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Movie Explorer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #141414 0%, #000000 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #e50914;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #cccccc;
+            margin-bottom: 30px;
+        }
+
+        .clapper {
+            font-size: 2rem;
+            margin: 0 10px;
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .filters {
+            background: rgba(229, 9, 20, 0.1);
+            border: 1px solid #e50914;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .filters h3 {
+            color: #e50914;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            margin-bottom: 5px;
+            color: #cccccc;
+            font-size: 0.9rem;
+        }
+
+        select, input {
+            background: #333333;
+            color: #ffffff;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 150px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #e50914;
+            box-shadow: 0 0 5px rgba(229, 9, 20, 0.3);
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .chart-section {
+            background: linear-gradient(145deg, #1a1a1a, #0d1117);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid #333333;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .chart-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(229, 9, 20, 0.2);
+        }
+
+        .chart-section h2 {
+            color: #e50914;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        .chart {
+            height: 400px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            font-size: 1.2rem;
+            color: #cccccc;
+        }
+
+        .loading::after {
+            content: '';
+            width: 30px;
+            height: 30px;
+            border: 3px solid #333333;
+            border-top: 3px solid #e50914;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 15px;
+        }
+
+        .error {
+            background: rgba(229, 9, 20, 0.1);
+            border: 1px solid #e50914;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            border-top: 1px solid #333333;
+            color: #666666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                min-width: auto;
+                width: 100%;
+            }
+
+            select, input {
+                max-width: none;
+            }
+
+            .chart {
+                height: 300px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .charts-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo">🎬 Netflix Movie Explorer</h1>
+            <p class="subtitle">Explore the vast Netflix catalog through interactive data visualization</p>
+            <div class="clapper">🎬</div>
+        </header>
+
+        <section class="filters">
+            <h3>Filter Your Exploration</h3>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="genre-filter">Genre</label>
+                    <select id="genre-filter">
+                        <option value="">All Genres</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="year-filter">Year</label>
+                    <input type="number" id="year-filter" placeholder="e.g. 2020" min="1900" max="2024">
+                </div>
+                <div class="filter-group">
+                    <label for="country-filter">Country</label>
+                    <select id="country-filter">
+                        <option value="">All Countries</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="rating-filter">Rating</label>
+                    <select id="rating-filter">
+                        <option value="">All Ratings</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <div class="charts-container">
+            <section class="chart-section">
+                <h2>🏆 Top 10 Genres</h2>
+                <div id="genre-chart" class="chart">
+                    <div class="loading">Loading genre data...</div>
+                </div>
+            </section>
+
+            <section class="chart-section">
+                <h2>📈 Titles Released Per Year</h2>
+                <div id="year-chart" class="chart">
+                    <div class="loading">Loading yearly data...</div>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>🎬 Netflix Movie Explorer | Built with Flask, Plotly.js & ❤️</p>
+            <p>Data visualization for entertainment content analysis</p>
+        </footer>
+    </div>
+
+    <script>
+        class NetflixExplorer {
+            constructor() {
+                this.init();
+            }
+
+            async init() {
+                await this.loadCharts();
+                this.setupEventListeners();
+            }
+
+            async loadCharts() {
+                try {
+                    await Promise.all([
+                        this.loadGenreChart(),
+                        this.loadYearChart()
+                    ]);
+                } catch (error) {
+                    console.error('Error loading charts:', error);
+                    this.showError('Failed to load chart data. Please refresh the page.');
+                }
+            }
+
+            async loadGenreChart() {
+                try {
+                    // Simulate API call with sample data
+                    const sampleGenreData = {
+                        genres: ['Drama', 'Comedy', 'Action', 'Horror', 'Romance', 'Thriller', 'Documentary', 'Crime', 'Animation', 'Sci-Fi'],
+                        counts: [1520, 1089, 876, 645, 523, 445, 398, 365, 298, 267]
+                    };
+
+                    const trace = {
+                        x: sampleGenreData.genres,
+                        y: sampleGenreData.counts,
+                        type: 'bar',
+                        marker: {
+                            color: '#e50914',
+                            opacity: 0.8,
+                            line: {
+                                color: '#ffffff',
+                                width: 1
+                            }
+                        },
+                        hovertemplate: '<b>%{x}</b><br>Count: %{y}<extra></extra>',
+                        textposition: 'outside',
+                        textfont: { color: '#ffffff' }
+                    };
+
+                    const layout = {
+                        title: {
+                            text: '',
+                            font: { color: '#ffffff' }
+                        },
+                        xaxis: {
+                            title: 'Genres',
+                            color: '#ffffff',
+                            tickangle: -45,
+                            tickfont: { color: '#cccccc' }
+                        },
+                        yaxis: {
+                            title: 'Number of Titles',
+                            color: '#ffffff',
+                            tickfont: { color: '#cccccc' }
+                        },
+                        plot_bgcolor: 'transparent',
+                        paper_bgcolor: 'transparent',
+                        font: { color: '#ffffff' },
+                        margin: { t: 20, b: 100, l: 60, r: 20 }
+                    };
+
+                    const config = {
+                        displayModeBar: false,
+                        responsive: true
+                    };
+
+                    Plotly.newPlot('genre-chart', [trace], layout, config);
+                } catch (error) {
+                    this.showChartError('genre-chart', 'Error loading genre data');
+                }
+            }
+
+            async loadYearChart() {
+                try {
+                    // Simulate API call with sample data
+                    const sampleYearData = {
+                        years: Array.from({length: 20}, (_, i) => 2005 + i),
+                        counts: [45, 52, 67, 89, 134, 178, 245, 298, 367, 445, 523, 678, 789, 856, 934, 1023, 1156, 987, 743, 456]
+                    };
+
+                    const trace = {
+                        x: sampleYearData.years,
+                        y: sampleYearData.counts,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        line: {
+                            color: '#e50914',
+                            width: 3
+                        },
+                        marker: {
+                            color: '#ffffff',
+                            size: 8,
+                            line: {
+                                color: '#e50914',
+                                width: 2
+                            }
+                        },
+                        hovertemplate: '<b>Year: %{x}</b><br>Titles: %{y}<extra></extra>'
+                    };
+
+                    const layout = {
+                        title: {
+                            text: '',
+                            font: { color: '#ffffff' }
+                        },
+                        xaxis: {
+                            title: 'Release Year',
+                            color: '#ffffff',
+                            tickfont: { color: '#cccccc' }
+                        },
+                        yaxis: {
+                            title: 'Number of Titles',
+                            color: '#ffffff',
+                            tickfont: { color: '#cccccc' }
+                        },
+                        plot_bgcolor: 'transparent',
+                        paper_bgcolor: 'transparent',
+                        font: { color: '#ffffff' },
+                        margin: { t: 20, b: 60, l: 60, r: 20 }
+                    };
+
+                    const config = {
+                        displayModeBar: false,
+                        responsive: true
+                    };
+
+                    Plotly.newPlot('year-chart', [trace], layout, config);
+                } catch (error) {
+                    this.showChartError('year-chart', 'Error loading year data');
+                }
+            }
+
+            setupEventListeners() {
+                // Add event listeners for filters
+                const filters = ['genre-filter', 'year-filter', 'country-filter', 'rating-filter'];
+                filters.forEach(filterId => {
+                    const element = document.getElementById(filterId);
+                    if (element) {
+                        element.addEventListener('change', () => this.applyFilters());
+                    }
+                });
+
+                // Populate filter options (demo data)
+                this.populateFilterOptions();
+            }
+
+            populateFilterOptions() {
+                // Sample data for filters
+                const genres = ['Action & Adventure', 'Anime', 'Children & Family', 'Comedies', 'Documentaries', 'Dramas', 'Horror Movies', 'International Movies', 'Music & Musicals', 'Romantic Movies', 'Sci-Fi & Fantasy', 'Thrillers'];
+                const countries = ['United States', 'India', 'United Kingdom', 'Canada', 'France', 'Japan', 'South Korea', 'Spain', 'Germany', 'Australia'];
+                const ratings = ['G', 'PG', 'PG-13', 'R', 'NC-17', 'TV-MA', 'TV-14', 'TV-PG', 'TV-G', 'TV-Y7'];
+
+                this.populateSelect('genre-filter', genres);
+                this.populateSelect('country-filter', countries);
+                this.populateSelect('rating-filter', ratings);
+            }
+
+            populateSelect(selectId, options) {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    options.forEach(option => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option;
+                        optionElement.textContent = option;
+                        select.appendChild(optionElement);
+                    });
+                }
+            }
+
+            applyFilters() {
+                // This would typically trigger API calls with filter parameters
+                console.log('Filters applied - would trigger data refresh');
+                // For demo, we'll just log the current filter values
+                const filters = {
+                    genre: document.getElementById('genre-filter').value,
+                    year: document.getElementById('year-filter').value,
+                    country: document.getElementById('country-filter').value,
+                    rating: document.getElementById('rating-filter').value
+                };
+                console.log('Current filters:', filters);
+            }
+
+            showChartError(chartId, message) {
+                const chartElement = document.getElementById(chartId);
+                if (chartElement) {
+                    chartElement.innerHTML = `<div class="error">${message}</div>`;
+                }
+            }
+
+            showError(message) {
+                console.error(message);
+                // Could show a toast notification or modal here
+            }
+        }
+
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new NetflixExplorer();
+        });
+    </script>
+</body>
+</html>
